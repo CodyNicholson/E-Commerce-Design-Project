@@ -1,7 +1,12 @@
 claude_logs/
 node_modules/
 dist/
+# Secrets and local deploy script
 .env
+.env.*
+!.env.example
+pipeline-run.sh
+
 *.local
 .idea/
 .vscode/
