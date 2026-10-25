@@ -1,0 +1,25 @@
+server:
+  port: ${PORT:8080}
+  shutdown: graceful
+
+spring:
+  application:
+    name: mromirror
+  main:
+    banner-mode: off
+  lifecycle:
+    timeout-per-shutdown-phase: 5s
+  # Request bodies are decoded strictly: field names match case-insensitively,
+  # but a quantity has to be a JSON integer, not "5" or 5.5.
+  jackson:
+    mapper:
+      accept-case-insensitive-properties: true
+      allow-coercion-of-scalars: false
+    deserialization:
+      accept-float-as-int: false
+
+mromirror:
+  # Base URL used in the PunchOut StartPage and cart-return URLs the API hands back
+  public-url: ${PUBLIC_URL:http://localhost:8090}
+  # POST /api/admin/reset needs this in X-Admin-Token; empty (the default) switches the endpoint off
+  admin-token: ${ADMIN_TOKEN:}

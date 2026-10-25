@@ -20,10 +20,11 @@ interface Options {
   json?: unknown
   text?: string
   asText?: boolean
+  headers?: Record<string, string>
 }
 
 export async function api<T>(path: string, opts: Options = {}): Promise<T> {
-  const headers: Record<string, string> = { 'X-User-ID': actingUser }
+  const headers: Record<string, string> = { ...opts.headers, 'X-User-ID': actingUser }
   let body: string | undefined
   if (opts.json !== undefined) {
     headers['Content-Type'] = 'application/json'

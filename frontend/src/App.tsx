@@ -1,5 +1,5 @@
 import { NavLink, Route, Routes, useNavigate } from 'react-router-dom'
-import { api } from './api'
+import { api, ApiError } from './api'
 import { money0 } from './format'
 import { useApp } from './state'
 import Home from './pages/Home'
@@ -145,9 +145,17 @@ export default function App() {
           <button
             className="underline hover:text-slate-700 dark:hover:text-slate-200"
             onClick={async () => {
-              if (!confirm('Reset every table to the original seed data?')) return
-              await api('/api/admin/reset', { method: 'POST' })
-              bump()
+              // The reset endpoint needs the server's ADMIN_TOKEN, so visitors cannot wipe the data
+              const token = prompt('Reset every table to the original seed data? Enter the admin token (ADMIN_TOKEN).')
+              if (!token) return
+              try {
+                await api('/api/admin/reset', { method: 'POST', headers: { 'X-Admin-Token': token } })
+                bump()
+              } catch (e) {
+                if (e instanceof ApiError && e.status === 404) alert('Reset is turned off on this server (ADMIN_TOKEN is not set).')
+                else if (e instanceof ApiError && e.status === 401) alert('Wrong admin token.')
+                else alert(`Reset failed: ${e instanceof Error ? e.message : e}`)
+              }
             }}
           >
             Reset demo data

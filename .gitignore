@@ -1,6 +1,7 @@
 claude_logs/
 node_modules/
 dist/
+target/
 # Secrets and local deploy script
 .env
 .env.*

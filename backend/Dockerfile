@@ -1,13 +1,13 @@
-FROM golang:1.24-alpine AS builder
+FROM maven:3.9.8-eclipse-temurin-21 AS build
 WORKDIR /app
-COPY go.mod go.sum ./
-RUN go mod download
-COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/server ./cmd/server
+COPY pom.xml .
+RUN mvn -B -q dependency:go-offline
+COPY src ./src
+# Unit tests run outside the image build: see README
+RUN mvn -B -q clean package -DskipTests
 
-FROM alpine:3.20
+FROM eclipse-temurin:21-jre
 WORKDIR /app
-RUN apk --no-cache add ca-certificates tzdata
-COPY --from=builder /app/server /app/server
+COPY --from=build /app/target/mromirror.jar app.jar
 EXPOSE 8080
-ENTRYPOINT ["/app/server"]
+ENTRYPOINT ["java", "-jar", "app.jar"]
