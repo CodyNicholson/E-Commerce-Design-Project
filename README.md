@@ -8,7 +8,7 @@ All customers, SKUs, prices, contracts and stock levels are synthetic.
 
 ```bash
 cp .env.example .env                # then set DB_PASSWORD (required), e.g. openssl rand -hex 24
-docker network inspect tunnel-net >/dev/null 2>&1 || docker network create tunnel-net   # once
+docker network inspect tunnel-net >/dev/null 2>&1 || docker network create tunnel-net   # once; external network
 docker compose up -d --build        # Postgres + Spring Boot API + React app
 open http://localhost:8090          # WEB_PORT overrides the port (bound to 127.0.0.1 only)
 ```
@@ -20,34 +20,25 @@ empty (the default) the reset endpoint is switched off and answers 404.
 There is no login. The persona switcher in the header sends `X-User-ID`, so you can look at the same SKU,
 cart or approval queue as different people in different companies.
 
-## Deploy to prod (Cloudflare tunnel)
-
-`./pipeline-run.sh` (git-ignored, lives only on the server) deploys the site the same way as the other labs:
-
-1. Creates `.env` from [`.env.example`](.env.example) if it is missing (`chmod 600`) and generates a random
-   `DB_PASSWORD` when it is empty and no `pgdata` volume exists yet.
-2. Reads `TUNNEL_TOKEN` from the server's global environment (e.g. `/etc/environment`), falling back to that
-   one line of `.env`.
-3. Runs `git-pull-project.sh` (skips the pull when the branch has no upstream).
-4. **Removes every container on the host**: only one app is live behind the tunnel at a time.
-5. Starts `cloudflared-tunnel` on the `tunnel-net` network, then `docker compose up -d --build`.
-
-The tunnel routes to `http://rixus-frontend:80`, which is the `web` container. Set `PUBLIC_URL` in `.env` to the
-public hostname so PunchOut StartPage and cart-return URLs point at the live site rather than localhost. The
-`pgdata` volume survives redeploys and keeps the password it was created with.
-
 ## Security
 
-The site is public through the tunnel and has no login, so:
+The site is public and has no login, so:
 
 - `POST /api/admin/reset` wipes every table, so it requires `X-Admin-Token` to match `ADMIN_TOKEN` (compared in
   constant time) and is off when `ADMIN_TOKEN` is empty.
 - The web port is published on `127.0.0.1` only. Docker's iptables rules bypass `ufw`, so a bare `8090:80` would
-  serve the app on the server's public IP and skip Cloudflare.
+  be reachable from outside.
 - `DB_PASSWORD` has no fallback in `docker-compose.yml`: a missing `.env` stops `docker compose` instead of starting
   Postgres with a password from this repo.
 - Postgres sits only on `backend-net` (`internal: true`, not published). The public nginx container is on
-  `frontend-net` and `tunnel-net` and cannot reach the database; only the API is on both networks.
+  `frontend-net` and the external network and cannot reach the database; only the API is on both networks.
+- Set `PUBLIC_URL` in `.env` to the public hostname so PunchOut StartPage and cart-return URLs point at the
+  live site rather than localhost.
+- nginx runs unprivileged (uid 101) with all capabilities dropped, `no-new-privileges`, and memory,
+  CPU and process limits; the other containers have `no-new-privileges` and memory and process limits.
+- Every response carries `Content-Security-Policy` (same-origin only, no framing),
+  `X-Content-Type-Options`, `Referrer-Policy` and `Permissions-Policy`
+  (`frontend/security-headers.conf`); the nginx version is hidden.
 
 ## Stack
 
